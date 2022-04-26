@@ -1,4 +1,5 @@
 import os
+import shutil
 import argparse
 from zipfile import ZipFile
 import pandas as pd
@@ -13,20 +14,19 @@ def make_parser():
                         help="A path to an input session zip file.")
     parser.add_argument('--path-output-dir', required=True,
                         help="A path to an output folder for selected sensors")
-    parser.add_argument('--sensors', required=True,
-                        help="list[sens1,sens2,etc.]sensor data to be extracted, {'acc','bvp','eda','temp'}.")
     parser.add_argument('--shift', required=True,
                         help="Milli second to shift csv's timestamp")
     parser.add_argument('--unit', default='g',
                         help="Acc unit to convert to, {g, m/s2}")
     return parser
 
-
-path_to_zip = r'G:/JaimeMorales/Codes/openlogi/20220301_U0201/e4-1/S0200.zip'
-output_dir= r'G:/JaimeMorales/Codes/openlogi/20220301_U0201/e4-1'
+'''
+path_to_zip = r'G:/JaimeMorales/Codes/open-pack/data/raw/20211014_U0101/e4-1/S0100.zip'
+output_dir= r'G:/JaimeMorales/Codes/open-pack/data/ADLTagger/U0101/e4-1'
 acc_unit = 'g'
 shift = 200
-sensors = []
+sensors = ['acc','bvp','eda','temp']
+'''
 
 def setup_dir(path):
     """ Clean
@@ -37,6 +37,7 @@ def setup_dir(path):
     """
     if not os.path.isdir(path):
         # If selected DIR does not exist, create it.
+        shutil.rmtree(path)
         os.makedirs(path)
         if os.path.isdir(path):
             print(">> Done: create directory [{}]".format(path))
@@ -62,30 +63,22 @@ def load_sensor_data(readir,file,shift=0):
     freq = 1/df[df.columns[0]][0]
     df.drop(0,axis=0,inplace=True)
     timestamps = np.linspace(0,freq*len(df),num = len(df))+start_time
-    df['time'] = timestamps
+    df['timestamp'] = timestamps
     
-    
-    time_1 = np.array(df['time'])
-    time_ms, time = np.modf(time_1)
-    df['time'] = time
-    df['time'] = pd.to_datetime(df['time'], yearfirst=True, utc=False, unit='s')
-    df['time_ms'] = np.round(time_ms, 3)
-    
-    #print(df['time_ms'])
-    columns = df.columns.to_list()
-    columns = columns[-2:] + columns[:-2]
-    
-    df = df[columns]
+    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=False, yearfirst=True, unit='s')
+    df["time"], df["time_milli"] = df["timestamp"].dt.strftime('%Y%m%d_%H:%M:%S.'), df["timestamp"].dt.microsecond // 1000
+    df["time"] = df["time"].astype(str) + df["time_milli"].astype(str).str.zfill(3)
+    df["group"] = df["timestamp"].dt.strftime('%Y%m%d_%H%M')
     
     return df
 
-def set_unit(inn_df,unit):
+def set_unit(inn_df,acc_unit):
     
     x = np.array(inn_df['acc_x'])
     y = np.array(inn_df['acc_y'])
     z = np.array(inn_df['acc_z'])
     
-    if unit == 'm/s2':
+    if acc_unit == 'm/s2':
         x = x * 9.80665 / 64
         y = y * 9.80665 / 64
         z = z * 9.80665 / 64
@@ -101,14 +94,26 @@ def set_unit(inn_df,unit):
     
     return new_df
 
-def save_file(df,output_dir,sensor,sess_id):
+def write_csv(df, path_output_dir,sess_id):
     
-    writedir = os.path.join(output_dir,sensor)
-    setup_dir(writedir)
-    writepath = os.path.join(writedir, sess_id)
-    df.to_csv(writepath,index=False)
+    groups = df["group"].drop_duplicates().reset_index(drop=True)
+    # Clean ouput directory
     
-    return
+    if os.path.isdir(path_output_dir):
+        shutil.rmtree(path_output_dir)
+        os.mkdir(path_output_dir)
+        print(">> Done: Clean output directory") 
+        
+    for group in groups:
+        df_selected = df[df["group"] == group].sort_values(by=["timestamp"])
+        target_path = setup_dir(os.path.join(path_output_dir, "acc2",sess_id))
+        target_file_name = group+"00_acc2.csv"
+        filename = os.path.join(target_path, target_file_name)
+        #print(df_selected[["time", "acc_x", "acc_y", "acc_z"]])
+        df_selected[["time", "acc_x", "acc_y", "acc_z"]].to_csv(filename, index=False, header=["time", "x", "y", "z"])
+        print(">> Done: write [Acc ] =>{}".format(filename))
+        
+    return len(groups)
 
 def main():
     # Parse Command Line Argumenmts
@@ -117,25 +122,19 @@ def main():
     
     path_to_zip = str(args.path_to_zip)
 
-    inter_dir = "/".join(path_to_zip.split("/")[:-1])
+    inter_dir = "\\".join(path_to_zip.split("\\")[:-1])
     inter_dir = os.path.join(inter_dir,'interim')
-    sess_id = path_to_zip.split("/")[-1:][0].replace('.zip','.csv')
+    sess_id = path_to_zip.split("\\")[-1:][0].replace('.zip','')
+
 
     with ZipFile(path_to_zip, 'r') as zipObj:
         setup_dir(inter_dir)
         # Extract all the contents of zip file in different directory
         zipObj.extractall(inter_dir)
         
-    sensors = list[args.sensors]
-
-    for sensor in sensors:
-    
-        df = load_sensor_data(inter_dir,sensor.upper()+'.csv',float(args.shift))
-    
-        if sensor == 'acc':
-            df = set_unit(df,str(args.unit))
-        
-        save_file(df,str(args.output_dir),sensor,sess_id)
+    df = load_sensor_data(inter_dir,'ACC.csv',float(args.shift))
+    df = set_unit(df,args.unit)
+    write_csv(df, args.output_dir,sess_id)
 
         
 if __name__=='__main__':
