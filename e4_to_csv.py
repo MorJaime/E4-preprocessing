@@ -65,6 +65,23 @@ def load_sensor_data(readir,file,shift=0,tz='UTC'):
     freq = 1/df[df.columns[0]][0]
     df.drop(0,axis=0,inplace=True)
     timestamps = np.linspace(0,freq*len(df),num = len(df))+start_time
+    df['timestamp'] = timestamps
+
+    if tz=='UTC':
+        utc=True
+    else:
+        utc=False
+    
+    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=utc, yearfirst=True, unit='s')
+
+    if tz!='UTC':
+        df['timestamp'] = df['timestamp'].dt.tz_localize('UTC').dt.tz_convert(tz)
+
+    df["time"], df["time_ms"] = df["timestamp"].dt.strftime('%Y%m%d_%H:%M:%S'), df["timestamp"].dt.microsecond // 1000
+
+    df.drop('timestamp',axis=1,inplace=True)
+
+    '''
     df['time'] = timestamps
     
     
@@ -79,12 +96,14 @@ def load_sensor_data(readir,file,shift=0,tz='UTC'):
     if tz!='UTC':
         df['time'] = df['time'].dt.tz_localize('UTC').dt.tz_convert(tz)
     df['time_ms'] = np.round(time_ms, 3)
-    
+    '''
+
     #print(df['time_ms'])
     columns = df.columns.to_list()
     columns = columns[-2:] + columns[:-2]
     
     df = df[columns]
+    
     
     return df
 

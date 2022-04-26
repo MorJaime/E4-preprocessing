@@ -16,6 +16,8 @@ def make_parser():
                         help="A path to an output folder for selected sensors")
     parser.add_argument('--shift', required=True,
                         help="Milli second to shift csv's timestamp")
+    parser.add_argument('--timezone', default='UTC',
+                        help="Set timezone required for output data. {UTC,Japan}")
     parser.add_argument('--unit', default='g',
                         help="Acc unit to convert to, {g, m/s2}")
     return parser
@@ -37,13 +39,12 @@ def setup_dir(path):
     """
     if not os.path.isdir(path):
         # If selected DIR does not exist, create it.
-        shutil.rmtree(path)
         os.makedirs(path)
         if os.path.isdir(path):
             print(">> Done: create directory [{}]".format(path))
     return path
 
-def load_sensor_data(readir,file,shift=0):
+def load_sensor_data(readir,file,shift=0,tz='UTC'):
     
     path=os.path.join(readir,file)
     df=pd.read_csv(path)
@@ -64,8 +65,17 @@ def load_sensor_data(readir,file,shift=0):
     df.drop(0,axis=0,inplace=True)
     timestamps = np.linspace(0,freq*len(df),num = len(df))+start_time
     df['timestamp'] = timestamps
+
+    if tz=='UTC':
+        utc=True
+    else:
+        utc=False
     
-    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=False, yearfirst=True, unit='s')
+    df['timestamp'] = pd.to_datetime(df['timestamp'], utc=utc, yearfirst=True, unit='s')
+
+    if tz!='UTC':
+        df['timestamp'] = df['timestamp'].dt.tz_localize('UTC').dt.tz_convert(tz)
+
     df["time"], df["time_milli"] = df["timestamp"].dt.strftime('%Y%m%d_%H:%M:%S.'), df["timestamp"].dt.microsecond // 1000
     df["time"] = df["time"].astype(str) + df["time_milli"].astype(str).str.zfill(3)
     df["group"] = df["timestamp"].dt.strftime('%Y%m%d_%H%M')
@@ -94,15 +104,12 @@ def set_unit(inn_df,acc_unit):
     
     return new_df
 
-def write_csv(df, path_output_dir,sess_id):
+def write_csv(df, path_output_dir, sess_id):
     
     groups = df["group"].drop_duplicates().reset_index(drop=True)
     # Clean ouput directory
-    
-    if os.path.isdir(path_output_dir):
-        shutil.rmtree(path_output_dir)
-        os.mkdir(path_output_dir)
-        print(">> Done: Clean output directory") 
+
+    setup_dir(path_output_dir)
         
     for group in groups:
         df_selected = df[df["group"] == group].sort_values(by=["timestamp"])
@@ -132,9 +139,9 @@ def main():
         # Extract all the contents of zip file in different directory
         zipObj.extractall(inter_dir)
         
-    df = load_sensor_data(inter_dir,'ACC.csv',float(args.shift))
+    df = load_sensor_data(inter_dir,'ACC.csv',float(args.shift),args.timezone)
     df = set_unit(df,args.unit)
-    write_csv(df, args.output_dir,sess_id)
+    write_csv(df, args.path_output_dir,sess_id)
 
         
 if __name__=='__main__':
