@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import argparse
 from zipfile import ZipFile
@@ -21,14 +22,6 @@ def make_parser():
     parser.add_argument('--unit', default='g',
                         help="Acc unit to convert to, {g, m/s2}")
     return parser
-
-'''
-path_to_zip = r'G:/JaimeMorales/Codes/open-pack/data/raw/20211014_U0101/e4-1/S0100.zip'
-output_dir= r'G:/JaimeMorales/Codes/open-pack/data/ADLTagger/U0101/e4-1'
-acc_unit = 'g'
-shift = 200
-sensors = ['acc','bvp','eda','temp']
-'''
 
 def setup_dir(path):
     """ Clean

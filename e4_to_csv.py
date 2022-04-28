@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import shutil
 from zipfile import ZipFile
@@ -16,8 +17,8 @@ def make_parser():
                         help="A path to an input session zip file.")
     parser.add_argument('--path-output-dir', required=True,
                         help="A path to an output folder for selected sensors")
-    parser.add_argument('--sensors', required=True,
-                        help="list[sens1,sens2,etc.]sensor data to be extracted, {'acc','bvp','eda','temp'}.")
+    parser.add_argument('--sensors', default = 'all',
+                        help="list of sensor type data to be extracted, {'acc','bvp','eda','temp'}.")
     parser.add_argument('--shift', required=True,
                         help="Milli second to shift csv's timestamp")
     parser.add_argument('--timezone', default='UTC',
@@ -26,12 +27,6 @@ def make_parser():
                         help="Acc unit to convert to, {g, m/s2}")
     return parser
 
-
-#path_to_zip = r'G:/JaimeMorales/Codes/openlogi/20220301_U0201/e4-1/S0200.zip'
-#output_dir= r'G:/JaimeMorales/Codes/openlogi/20220301_U0201/e4-1'
-#acc_unit = 'g'
-#shift = 200
-#sensors = []
 
 def setup_dir(path):
     """ Clean
@@ -162,8 +157,12 @@ def main():
         setup_dir(inter_dir)
         # Extract all the contents of zip file in different directory
         zipObj.extractall(inter_dir)
+
+    if args.sensors == 'all':
+        sensors = ['acc','bvp','eda','temp']
+    else:
+        sensors = args.sensors.split(',')
         
-    sensors = args.sensors.split(',')
     print(sensors)
 
     for sensor in sensors:
