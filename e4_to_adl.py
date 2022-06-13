@@ -32,6 +32,7 @@ def setup_dir(path):
     """
     if not os.path.isdir(path):
         # If selected DIR does not exist, create it.
+        #print(path)
         os.makedirs(path)
         if os.path.isdir(path):
             print(">> Done: create directory [{}]".format(path))
@@ -106,7 +107,9 @@ def write_csv(df, path_output_dir, sess_id):
         
     for group in groups:
         df_selected = df[df["group"] == group].sort_values(by=["timestamp"])
-        target_path = setup_dir(os.path.join(path_output_dir, "acc2",sess_id))
+        out_path = "/".join(path_output_dir.split("/")[:-1])
+        s_type = str(path_output_dir.split("/")[-1])
+        target_path = setup_dir(os.path.join(out_path, "acc2",s_type,sess_id))
         target_file_name = group+"00_acc2.csv"
         filename = os.path.join(target_path, target_file_name)
         #print(df_selected[["time", "acc_x", "acc_y", "acc_z"]])
@@ -121,10 +124,12 @@ def main():
     args = parser.parse_args()
     
     path_to_zip = str(args.path_to_zip)
+    output_dir = str(args.path_output_dir)
 
-    inter_dir = "\\".join(path_to_zip.split("\\")[:-1])
+    inter_dir = "/".join(output_dir.split("/")[:-1])
     inter_dir = os.path.join(inter_dir,'interim')
-    sess_id = path_to_zip.split("\\")[-1:][0].replace('.zip','')
+    #print('inter_dir',inter_dir)
+    sess_id = path_to_zip.split("/")[-1:][0].replace('.zip','')
 
 
     with ZipFile(path_to_zip, 'r') as zipObj:
