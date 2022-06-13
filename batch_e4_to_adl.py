@@ -17,7 +17,7 @@ def make_parser():
     parser.add_argument('--path-output', required=True,
                         help="A path to main folder for output files, e.g.{G:\\User\\xxx\\open-pack\data\ADLTagger}")
     parser.add_argument('--path-to-shifts', required=True,
-                        help="A path to device shift .csv file. {PATH\\wearable_shifts.csv}")
+                        help="A path to device shift .csv file. {PATH\\sensor_shifts.csv}")
     parser.add_argument('--users', default = 'all',
                         help="list of Users to be extracted. {[U0101,U0102], all}")
     parser.add_argument('--devices', default = 'all',
@@ -55,7 +55,7 @@ def main():
 
     for user in users_l:
         if user not in available_users:
-            sys.exit("User {} not available in shifts.csv file".format(user))
+            sys.exit("User {} not available in sensor_shifts.csv file".format(user))
 
     for device in devices_l:
         if device not in ['e4-1','e4-2']:
@@ -71,15 +71,17 @@ def main():
 
         for device in devices_l:
             for session in sessions_l:
-                path_to_zip = os.path.join(main_folder,date+'_'+user,device, session + '.zip')
-                path_output_dir = os.path.join(output_main,user,device)
+                path_to_zip = os.path.join(main_folder,user,device, session + '.zip')
+                path_output_dir = os.path.join(output_main,user,'data',device)
                 shift = str(list(work_df[work_df['session']==session][device+'_shift'])[0])
 
                 print("python e4_to_adl.py " + ("--path-to-zip "+path_to_zip) + (" --path-output-dir "+path_output_dir) + 
                                (" --shift "+shift ) + (" --timezone "+args.timezone) + (" --unit "+ args.unit) )
 
                 subprocess.run("python e4_to_adl.py " + ("--path-to-zip "+path_to_zip) + (" --path-output-dir "+path_output_dir) + 
-                               (" --shift "+shift ) + (" --timezone "+args.timezone) + (" --unit "+ args.unit) )
+                               (" --shift "+shift ) + (" --timezone "+args.timezone) + (" --unit "+ args.unit), shell=True )
+                #subprocess.run("python /home/bob/har-open-pack-codes/E4-preprocessing/e4_to_adl.py ", shell=True)
+                #subprocess.run("python ./e4_to_adl.py",shell=True)
 
         
 if __name__=='__main__':
